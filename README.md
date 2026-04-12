@@ -4,28 +4,33 @@
 
 ## Current phase
 
-This repository is in **bootstrap/skeleton phase**:
-- contracts and boundaries are documented,
-- package/module landing zones exist,
-- only light scaffolding is implemented.
+This repository is in **Phase 3 (first extraction wave)**:
+- canonical schema constants are implemented,
+- baseline validation checks are implemented,
+- basic normalization/dedupe helpers are implemented,
+- provider registry + compatibility env behavior is implemented,
+- minimal cache-backed load API is implemented.
 
-No real provider API integration or ingestion business logic is implemented yet.
+Still intentionally deferred:
+- concrete BaoStock/Tushare adapter wiring,
+- full ingest pipeline,
+- dataset inspection and rich manifests,
+- advanced calendar and adjustment transforms.
 
-## What this repo will own
+## What this repo owns
 
-- provider adapters
+- provider adapter contracts and registry
 - canonical OHLCV schema and metadata contracts
-- validation and calendar/session checks
+- validation entrypoints for shared bar invariants
+- generic normalization/dedupe helpers
 - storage/access API boundaries
-- transform boundaries (resample/adjust)
-- minimal operational CLI
 
 ## What is intentionally deferred
 
 - Backtrader integration
 - strategy/signal/research orchestration
 - full ingest pipelines
-- production-grade persistence implementations
+- production-grade persistence orchestration and cataloging
 
 ## Package layout
 
