@@ -1,0 +1,1 @@
+"""Tushare adapter package scaffold."""

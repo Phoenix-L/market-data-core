@@ -1,0 +1,1 @@
+"""BaoStock adapter package scaffold."""
