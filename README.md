@@ -1,37 +1,46 @@
 # market-data-core
 
-`market-data-core` is the reusable market-data foundation package extracted from `aShare` planning work.
+`market-data-core` is the reusable market-data foundation package shared by `aShare` and future consumer repos.
 
 ## Current phase
 
-This repository is in **bootstrap/skeleton phase**:
-- contracts and boundaries are documented,
-- package/module landing zones exist,
-- only light scaffolding is implemented.
+This repository is in **Phase 5 (wave 2 expansion + contract tightening)**.
 
-No real provider API integration or ingestion business logic is implemented yet.
+Implemented and stable for consumers:
+- canonical bar schema constants and validation entrypoint,
+- CN A-share session anchor helpers and alignment checks,
+- provider registry boundary with compatibility env behavior,
+- storage layout/manifests helpers and dataset inspection APIs,
+- load API boundary (`load_bars`, `load_daily`, `load_30m`, `load_minute_30`).
 
-## What this repo will own
+Still intentionally deferred:
+- concrete BaoStock/Tushare SDK adapters,
+- ingest orchestration pipelines,
+- full transform layer (`resample`, `adjust`) implementation.
 
-- provider adapters
-- canonical OHLCV schema and metadata contracts
-- validation and calendar/session checks
-- storage/access API boundaries
-- transform boundaries (resample/adjust)
-- minimal operational CLI
+## Public package boundaries
 
-## What is intentionally deferred
+Prefer importing from these modules:
+- `market_data_core.access`
+- `market_data_core.validation`
+- `market_data_core.calendar`
+- `market_data_core.storage`
+- `market_data_core.providers`
 
-- Backtrader integration
-- strategy/signal/research orchestration
-- full ingest pipelines
-- production-grade persistence implementations
+Internal helpers may evolve faster and are not guaranteed as stable imports.
+
+## Scope guardrails
+
+This package does **not** own:
+- Backtrader integration,
+- strategy/signal/research orchestration,
+- experiment/report workflows.
 
 ## Package layout
 
 See:
 - `docs/architecture.md`
-- `docs/repo_structure.md`
 - `docs/public_api_draft.md`
+- `docs/storage_layout.md`
 
 Code is under `src/market_data_core/` and tests under `tests/`.

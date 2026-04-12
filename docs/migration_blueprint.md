@@ -197,3 +197,52 @@ Phase 1 extraction is done when:
 2. Whether adjustment factors are sourced from one provider or merged precedence rules.
 3. Whether to materialize adjusted datasets in curated layer by default for 30m workloads.
 4. Choice of manifest/catalog backend beyond simple JSON sidecars.
+
+---
+
+## 10) Phase 3 progress note (first extraction wave)
+
+### Implemented in Phase 3
+- Canonical schema constants expanded (`required`, `optional`, key columns, schema version/timezone anchor helpers).
+- Reusable validation entrypoint `validate_bars(...)` added with strict/permissive behavior and basic checks:
+  - required columns,
+  - duplicate `(symbol, timestamp)` keys,
+  - per-symbol timestamp monotonicity,
+  - OHLC invariants,
+  - non-negative volume and turnover-rate checks.
+- Generic normalization and dedupe helpers added for column cleanup and key-level deduplication.
+- Provider registry now supports explicit factory registration (`register_provider`) plus env compatibility (`MARKET_DATA_PROVIDER` with `ASHARE_DATA_PROVIDER` fallback).
+- Minimal storage cache implementation landed in `storage/parquet_store.py` with neutral root resolution (`MARKET_DATA_ROOT` + legacy alias fallback).
+- `access.load.load_bars` implemented with provider fetch path, cache read/write integration, strict validation enforcement, and compatibility alias `load_minute_30`.
+
+### Deferred to later phases
+- Concrete BaoStock/Tushare adapter implementations and provider-client wiring.
+- Dataset inspection APIs (`list_datasets`, `inspect_dataset`).
+- Ingest orchestration (`ingest_bars`) and manifest-rich persistence.
+- Calendar grid/holiday certainty checks beyond basic timestamp ordering.
+
+### Blockers / unresolved items
+- Direct extraction parity from `aShare` provider modules requires access to final split-ready `tushare_client` abstraction.
+- Exact storage partition implementation in `storage_layout.md` is not yet fully applied (Phase 3 keeps loader/cache-compatible key layout for low-risk migration).
+- Provider parity validation against source outputs still pending once concrete adapters are moved.
+
+---
+
+## 11) Phase 5 progress note (wave 2 + contract tightening)
+
+### Implemented in Phase 5
+- Calendar/session helpers extracted and implemented for CN A-share anchor semantics (`1d`, `30m`) and timezone normalization.
+- Validation now includes calendar session alignment checks and missing-30m-anchor diagnostics.
+- Storage semantics tightened with layer-aware partition builders, dataset id helper, and typed manifest sidecars.
+- Dataset inspection APIs (`list_datasets`, `inspect_dataset`) implemented using manifest discovery.
+- Public API boundaries documented as Phase 5 stable in `docs/public_api_draft.md`.
+
+### Deferred to later phases
+- Concrete provider adapter extraction parity (BaoStock/Tushare implementation details).
+- Ingest orchestration (`ingest_bars`) and transform layer (`resample`, `adjust`) production implementation.
+- Holiday-calendar certainty classification beyond best-effort diagnostics.
+
+### Consumer impact notes
+- No breaking changes to Phase 4 load API signatures (`load_daily`, `load_30m`, `load_minute_30`).
+- Validation is stricter for session misalignment; consumers should ensure intraday timestamps match canonical open anchors.
+- Dataset inspection is now manifest-driven; consumer repos should treat manifest fields as primary metadata contract.

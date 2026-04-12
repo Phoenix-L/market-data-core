@@ -162,3 +162,19 @@ Create as light placeholders initially:
 2. `clean/`, `calendar/`, `transform/`, `ingest/`, `cli/`
 
 This sequencing supports extracting current `aShare` loader/provider/cache stack first without overbuilding.
+
+---
+
+## Phase 5 boundary hardening notes
+
+Public/stable entry modules at this stage:
+- `market_data_core.access`
+- `market_data_core.validation`
+- `market_data_core.calendar`
+- `market_data_core.storage`
+- `market_data_core.providers` (registry/boundary, not full adapter parity yet)
+
+Still internal/unstable:
+- `ingest/*` implementation details,
+- `transform/*` implementation details,
+- provider SDK client specifics pending final extraction.
