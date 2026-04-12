@@ -1,221 +1,199 @@
-# Migration Blueprint: Extract `market-data-core` from `aShare`
+# Migration Blueprint: `aShare` → `market-data-core` (Phase 1 Contracts + Extraction Plan)
 
 ## 1) Goal
 
-Create a standalone repository `market-data-core` that owns reusable market-data functionality (provider adapters, schema normalization/validation, cache/load APIs), while keeping Backtrader and strategy execution concerns in `aShare`.
+Establish `market-data-core` as the reusable market-data package for:
+- provider adapters,
+- canonical OHLCV contract,
+- normalization/validation,
+- calendar/session semantics,
+- storage/access APIs.
+
+Keep Backtrader, strategy logic, experiment/research orchestration in `aShare`.
 
 ---
 
-## 2) Migration principles
+## 2) Phase 1 contract prerequisites (must be accepted before extraction)
 
-1. **DataFrame boundary**: extracted package returns canonical pandas DataFrames only.
-2. **No strategy runtime in core**: core cannot depend on Backtrader or strategy modules.
-3. **Conservative extraction**: move stable primitives first; defer entangled modules.
-4. **Behavior preservation**: maintain current schema/column names and loader semantics.
-5. **Explicit compatibility**: temporary aShare shims allowed to avoid breaking callers.
+Extraction depends on these contracts being the source of truth:
+1. `docs/canonical_bar_contract.md`
+2. `docs/calendar_policy.md`
+3. `docs/adjustment_policy.md`
+4. `docs/storage_layout.md`
+5. `docs/public_api_draft.md`
+6. `docs/architecture.md`
+7. `docs/repo_structure.md`
 
----
-
-## 3) Bucket definitions
-
-- **CORE_MOVE_NOW**: generic data-layer code with manageable coupling; extract first wave.
-- **CORE_MOVE_LATER**: belongs in core but requires split/config cleanup first.
-- **KEEP_LOCAL**: aShare runtime/research/backtrader-specific code.
-- **UNCLEAR**: uncertain fit; needs additional architecture decision.
+No module moves should happen without aligning behavior to these docs.
 
 ---
 
-## 4) Current data flow summary
+## 3) Module classification (from Phase 0 audit)
 
-1. CLI/experiment/research entry points call `load_daily`/`load_minute_30`.
-2. Loader resolves provider and cache, then fetches or reads cached data.
-3. Provider adapter normalizes vendor payloads to canonical OHLCV+turnover DataFrame.
-4. Loader validates schema and writes cache.
-5. Engine converts DataFrame to Backtrader feed and does runtime resampling.
-
-Clean cut line: after validated DataFrame return from loader; before Backtrader feed conversion.
-
----
-
-## 5) Module-by-module classification
-
-| Module | Bucket | Why |
+| Source module in `aShare` | Bucket | Decision |
 |---|---|---|
-| `src/ashare/data/providers/base.py` | CORE_MOVE_NOW | Pure generic provider contract. |
-| `src/ashare/data/providers/__init__.py` | CORE_MOVE_NOW | Generic factory/registry with minor env rename needs. |
-| `src/ashare/data/providers/baostock_provider.py` | CORE_MOVE_NOW | Provider adapter logic is core market-data functionality. |
-| `src/ashare/data/providers/tushare_provider.py` | CORE_MOVE_NOW | Provider adapter logic is core market-data functionality. |
-| `src/ashare/data/cache.py` | CORE_MOVE_NOW | Generic cache read/write and keying mechanism. |
-| `src/ashare/data/loaders.py` | CORE_MOVE_NOW | Canonical data-access API and schema guardrails. |
-| `src/ashare/data/tushare_client.py` | CORE_MOVE_LATER | Hard-coded repo-root `.env` pathing; split/config polish needed. |
-| `src/ashare/config/settings.py` (cache slice) | CORE_MOVE_LATER | Mixed with backtest settings; must be split first. |
-| `src/ashare/sanitytests.py` | CORE_MOVE_LATER | Generic validation helper but currently CLI-oriented. |
-| `src/ashare/data/normalizers.py` | KEEP_LOCAL | Backtrader adapter; excluded by target scope. |
-| `src/ashare/engine/runner.py` | KEEP_LOCAL | Runtime feed conversion/resampling and backtest execution. |
-| `src/ashare/experiment/executor.py` | KEEP_LOCAL | Experiment orchestration only consumes loaders. |
-| `src/ashare/research/walk_forward.py` | KEEP_LOCAL | Research orchestration only consumes loaders. |
-| `src/ashare/cli.py` | KEEP_LOCAL | App CLI + local research pipeline wiring. |
-| `research/regime_state_machine/*.py` | UNCLEAR | Research analytics; not core ingestion currently. |
+| `src/ashare/data/providers/base.py` | CORE_MOVE_NOW | Move in wave 1 |
+| `src/ashare/data/providers/__init__.py` | CORE_MOVE_NOW | Move in wave 1 |
+| `src/ashare/data/providers/baostock_provider.py` | CORE_MOVE_NOW | Move in wave 1 |
+| `src/ashare/data/providers/tushare_provider.py` | CORE_MOVE_NOW | Move in wave 1 |
+| `src/ashare/data/cache.py` | CORE_MOVE_NOW | Move in wave 1 |
+| `src/ashare/data/loaders.py` | CORE_MOVE_NOW | Move in wave 1 |
+| `src/ashare/data/tushare_client.py` | CORE_MOVE_LATER | Split then move |
+| `src/ashare/config/settings.py` (cache slice) | CORE_MOVE_LATER | Split then move |
+| `src/ashare/sanitytests.py` | CORE_MOVE_LATER | Optional post-wave 1 |
+| `src/ashare/data/normalizers.py` | KEEP_LOCAL | Keep in `aShare` |
+| Engine/strategy/research modules | KEEP_LOCAL / UNCLEAR | Keep in `aShare` |
 
 ---
 
-## 6) Split-required modules
+## 4) CORE_MOVE_NOW mapping (required detail)
 
-### A) `src/ashare/config/settings.py`
-- **Generic slice to extract later**:
-  - cache root resolution (`get_cache_dir`) and related env constants.
-- **aShare-local slice to keep**:
-  - `BacktestConfig` (commission/stamp duty/slippage assumptions for Backtrader broker).
-- **Why split first**: data-core should not import broker/runtime settings.
+## Item 1: `src/ashare/data/providers/base.py`
+- **Target path**: `src/market_data_core/providers/base.py`
+- **Contract dependencies**:
+  - Canonical dataframe contract (`canonical_bar_contract.md`)
+  - Frequency ids (`1d`, `30m`) and timestamp semantics (`calendar_policy.md`)
+- **Extraction order**: `1`
+- **Required source split/refactor before movement**: none
+- **Notes**:
+  - Keep method signatures close to existing to minimize migration churn.
 
-### B) `src/ashare/data/tushare_client.py`
-- **Generic slice to extract later**:
-  - token lookup + client builder for Tushare API.
-- **aShare-local slice to keep (if any)**:
-  - repo-specific `.env` discovery assumptions (currently parent traversal).
-- **Why split first**: avoid hard-coded source-repo layout in core package.
+## Item 2: `src/ashare/data/providers/__init__.py`
+- **Target path**: `src/market_data_core/providers/registry.py` (+ `providers/__init__.py` re-export)
+- **Contract dependencies**:
+  - Public API naming in `public_api_draft.md`
+  - Env compatibility policy (`ASHARE_DATA_PROVIDER` alias + neutral naming)
+- **Extraction order**: `2`
+- **Required source split/refactor before movement**:
+  - Replace aShare-branded env assumptions with neutral primary env and compatibility fallback.
+- **Notes**:
+  - Preserve reset hook for tests.
 
-### C) `src/ashare/data/normalizers.py` (boundary clarification, not actual move)
-- **Generic slice**: none currently (function is Backtrader-specific).
-- **aShare-local slice**: entire file remains local.
-- **Action**: do not move; ensure loader/core interface stays DataFrame-only.
+## Item 3: `src/ashare/data/providers/baostock_provider.py`
+- **Target path**: `src/market_data_core/providers/baostock.py`
+- **Contract dependencies**:
+  - Canonical columns/invariants (`canonical_bar_contract.md`)
+  - Session/timestamp grid (`calendar_policy.md`)
+- **Extraction order**: `3`
+- **Required source split/refactor before movement**: none (path/import rewiring only)
+- **Notes**:
+  - Preserve current turnover derivation behavior in first move; improvements can be phase 2.
 
----
+## Item 4: `src/ashare/data/providers/tushare_provider.py`
+- **Target path**: `src/market_data_core/providers/tushare.py`
+- **Contract dependencies**:
+  - Canonical columns/invariants (`canonical_bar_contract.md`)
+  - Adjustment naming alignment (`adjustment_policy.md`) where relevant
+- **Extraction order**: `4`
+- **Required source split/refactor before movement**:
+  - Temporary import bridge to existing `aShare` tushare client until client split is complete.
+- **Notes**:
+  - Maintain existing daily + 30m normalization semantics for parity.
 
-## 7) Proposed target structure in `market-data-core`
+## Item 5: `src/ashare/data/cache.py`
+- **Target path**: `src/market_data_core/storage/parquet_store.py`
+- **Contract dependencies**:
+  - Storage partitioning/naming (`storage_layout.md`)
+  - Manifest metadata minima (`storage_layout.md`)
+- **Extraction order**: `5`
+- **Required source split/refactor before movement**:
+  - Decouple from `ashare.config.settings.get_cache_dir`.
+  - Read `MARKET_DATA_ROOT` first; support legacy alias during transition.
+- **Notes**:
+  - Keep read/write behavior conservative; no format switch in wave 1.
 
-```text
-market_data_core/
-  __init__.py
-  providers/
-    __init__.py              # factory/registry
-    base.py                  # DataProvider ABC
-    baostock.py              # BaoStock adapter
-    tushare.py               # Tushare adapter
-    tushare_client.py        # token/client (post-split)
-  schema/
-    canonical.py             # required columns, schema constants
-    validation.py            # dataframe validation helpers
-  cache/
-    store.py                 # cache path/read/write helpers
-    keys.py                  # request key conventions
-  loaders/
-    bars.py                  # load_daily/load_minute_30 style APIs
-  config/
-    settings.py              # provider/cache env config (core-scoped names)
-```
-
-Notes:
-- Keep names close to current APIs in first migration to reduce churn.
-- Backtrader adapters explicitly remain outside this package.
-
----
-
-## 8) First extraction wave (recommended)
-
-### Scope (Wave 1)
-Move these modules first:
-1. `src/ashare/data/providers/base.py`
-2. `src/ashare/data/providers/__init__.py`
-3. `src/ashare/data/providers/baostock_provider.py`
-4. `src/ashare/data/providers/tushare_provider.py`
-5. `src/ashare/data/cache.py`
-6. `src/ashare/data/loaders.py`
-
-### For each CORE_MOVE item
-
-#### CORE_MOVE_NOW items
-
-1) **`src/ashare/data/providers/base.py`**
-- Reason: stable interface definition.
-- Target in core: `market_data_core/providers/base.py`.
-- Prerequisite split/refactor: none.
-- Important dependencies: `pandas` only.
-- Recommended extraction order: **1**.
-
-2) **`src/ashare/data/providers/__init__.py`**
-- Reason: central provider lookup lifecycle.
-- Target in core: `market_data_core/providers/__init__.py`.
-- Prerequisite split/refactor: adapt env naming (`ASHARE_DATA_PROVIDER` compatibility alias).
-- Important dependencies: provider base + concrete adapters.
-- Recommended extraction order: **2**.
-
-3) **`src/ashare/data/providers/baostock_provider.py`**
-- Reason: concrete generic ingestion adapter.
-- Target in core: `market_data_core/providers/baostock.py`.
-- Prerequisite split/refactor: module path updates only.
-- Important dependencies: `baostock`, `pandas`, provider base.
-- Recommended extraction order: **3**.
-
-4) **`src/ashare/data/providers/tushare_provider.py`**
-- Reason: concrete generic ingestion adapter.
-- Target in core: `market_data_core/providers/tushare.py`.
-- Prerequisite split/refactor: temporary bridge to existing `tushare_client` until that module moves.
-- Important dependencies: `pandas`, `tushare_client`.
-- Recommended extraction order: **4**.
-
-5) **`src/ashare/data/cache.py`**
-- Reason: reusable storage primitive.
-- Target in core: `market_data_core/cache/store.py`.
-- Prerequisite split/refactor: decouple from `ashare.config.settings.get_cache_dir`.
-- Important dependencies: `pandas`, path utils.
-- Recommended extraction order: **5**.
-
-6) **`src/ashare/data/loaders.py`**
-- Reason: current public data-access façade used widely in aShare.
-- Target in core: `market_data_core/loaders/bars.py`.
-- Prerequisite split/refactor: import rewiring to core-local provider/cache modules.
-- Important dependencies: provider factory, cache store, schema validation.
-- Recommended extraction order: **6**.
-
-#### CORE_MOVE_LATER items
-
-7) **`src/ashare/data/tushare_client.py`**
-- Reason for later: repo-root `.env` path assumption is brittle in standalone package.
-- Target in core: `market_data_core/providers/tushare_client.py`.
-- Prerequisite refactor/split: replace `parents[3]` lookup with explicit config/env loading strategy.
-- Important dependencies: `tushare`, `dotenv`.
-- Recommended extraction order: after Wave 1 stabilization (**7**).
-
-8) **`src/ashare/config/settings.py` (cache slice)**
-- Reason for later: mixed with backtesting broker config.
-- Target in core: `market_data_core/config/settings.py` (cache/provider-only concerns).
-- Prerequisite refactor/split: isolate `get_cache_dir` and related constants into a data-only module.
-- Important dependencies: env handling only.
-- Recommended extraction order: with/after `tushare_client` hardening (**8**).
-
-9) **`src/ashare/sanitytests.py`**
-- Reason for later: useful reusable smoke checks, but not required for minimal core extraction.
-- Target in core: `market_data_core/testing/sanity.py` (optional helper layer).
-- Prerequisite refactor/split: remove aShare CLI assumptions; keep loader-agnostic.
-- Important dependencies: pandas + loader callable signatures.
-- Recommended extraction order: optional post-Phase 0 (**9**).
+## Item 6: `src/ashare/data/loaders.py`
+- **Target path**: `src/market_data_core/access/load.py`
+- **Contract dependencies**:
+  - Public load API (`public_api_draft.md`)
+  - Validation strictness (`canonical_bar_contract.md`, `calendar_policy.md`)
+- **Extraction order**: `6`
+- **Required source split/refactor before movement**:
+  - Rewire imports to core providers + storage + validation modules.
+  - Add compatibility wrappers (`load_daily`, `load_30m` and optional alias `load_minute_30`).
+- **Notes**:
+  - This is the critical boundary for `aShare` consumers.
 
 ---
 
-## 9) Risks
+## 5) Tightened first extraction wave (actionable sequence)
 
-1. **Env/config compatibility drift**
-   - Existing callers depend on `ASHARE_*` env vars and cache location behavior.
-2. **Hidden provider behavior contracts**
-   - Downstream code assumes columns and sorted datetime index exactly as today.
-3. **Turnover-rate semantics mismatch**
-   - BaoStock/Tushare derive/map turnover differently; subtle changes could alter strategy behavior.
-4. **Singleton provider state**
-   - Shared process state can surprise tests or multi-provider workflows.
-5. **Backtrader boundary leakage**
-   - Risk of accidentally moving feed conversion code into core.
-6. **Path/layout assumptions**
-   - `tushare_client` currently assumes source-repo structure for `.env` loading.
+## Wave 1A: foundation move (no behavior changes)
+1. Move `providers/base.py`.
+2. Move provider registry/factory module with env compatibility aliasing.
+3. Add schema constants + validator skeleton (`schema/canonical.py`, `validation/bars.py`) matching current loader checks.
+
+**Exit check**:
+- Existing provider unit tests (or equivalent smoke checks) pass unchanged via compatibility imports.
+
+## Wave 1B: provider adapter move
+4. Move BaoStock adapter.
+5. Move Tushare adapter (using temporary bridge to old tushare client if needed).
+
+**Exit check**:
+- Daily and 30m fetch parity verified on sample symbols/date ranges against pre-move outputs (row count, columns, timestamp monotonicity).
+
+## Wave 1C: storage + loader boundary move
+6. Move cache/store logic to `storage/parquet_store.py` with root-config abstraction.
+7. Move loader API to `access/load.py` and preserve compatibility wrappers in `aShare`.
+
+**Exit check**:
+- `aShare` callers import through shim without behavior regressions.
+- Cache read/write path works with both neutral and legacy env configuration.
+
+## Wave 1D: stabilization
+8. Add dataset inspection minimal API (`access/inspect.py`) over existing storage metadata.
+9. Freeze Phase 1 API signatures and document migration notes.
+
+**Exit check**:
+- Contract docs and code behavior match; extraction wave can be declared complete.
 
 ---
 
-## 10) Exit criteria for Phase 0
+## 6) CORE_MOVE_LATER plan
 
-Phase 0 is complete when all are true:
+## `src/ashare/data/tushare_client.py`
+- **Target**: `src/market_data_core/providers/tushare_client.py`
+- **Prerequisite**: remove hard-coded repo-root `.env` discovery (`parents[3]` style coupling).
+- **Suggested approach**: explicit token resolution priority: function arg > env var > optional dotenv load at cwd/data-root.
 
-1. `market-data-core` contains provider base/factory, BaoStock/Tushare adapters, cache helpers, and loader API.
-2. `aShare` imports data access from core (directly or via compatibility shim) with no behavior regressions in existing loader-facing tests.
-3. Backtrader normalizers and engine runtime remain fully in aShare.
-4. Cache path/provider env behavior is documented and backward-compatible (or explicitly migrated with clear fallback).
-5. Known split tasks (`tushare_client` pathing and config split) are tracked with owners and accepted as Phase 1 follow-ups.
+## `src/ashare/config/settings.py` (cache slice)
+- **Target**: `src/market_data_core/core/constants.py` and/or `core/types.py`
+- **Prerequisite**: split backtest broker settings from data-root/provider env settings.
+
+## `src/ashare/sanitytests.py`
+- **Target**: `src/market_data_core/validation/smoke.py` (optional)
+- **Prerequisite**: remove CLI/output formatting coupling.
+
+---
+
+## 7) Risk controls
+
+1. **Schema drift risk**
+   - Control: strict validation on write path; explicit schema version in metadata.
+2. **Config compatibility risk**
+   - Control: temporary support for legacy `ASHARE_*` env vars with deprecation note.
+3. **Provider parity risk**
+   - Control: sample parity checks per provider/frequency before deleting old code paths.
+4. **Boundary leakage risk**
+   - Control: ban Backtrader imports in `market-data-core` CI checks.
+
+---
+
+## 8) Phase 1 done criteria
+
+Phase 1 extraction is done when:
+1. All CORE_MOVE_NOW modules are moved to target paths listed above.
+2. `aShare` consumes moved loaders via compatibility shim or direct imports without behavior regression.
+3. Backtrader/feed/strategy/research modules remain in `aShare`.
+4. Contract docs listed in Section 2 are reflected in implementation and tests.
+5. Open issues for CORE_MOVE_LATER items are tracked with owners before Phase 2 starts.
+
+---
+
+## 9) Open decisions requiring manual judgment before Phase 2
+
+1. Final neutral env var names and deprecation timeline for `ASHARE_*` aliases.
+2. Whether adjustment factors are sourced from one provider or merged precedence rules.
+3. Whether to materialize adjusted datasets in curated layer by default for 30m workloads.
+4. Choice of manifest/catalog backend beyond simple JSON sidecars.
