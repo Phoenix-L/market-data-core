@@ -1,0 +1,4 @@
+# Development-only sample configuration
+market_data_root: .data/market_data
+provider_default: baostock
+timezone: Asia/Shanghai
