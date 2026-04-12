@@ -1,42 +1,46 @@
 # market-data-core
 
-`market-data-core` is the reusable market-data foundation package extracted from `aShare` planning work.
+`market-data-core` is the reusable market-data foundation package shared by `aShare` and future consumer repos.
 
 ## Current phase
 
-This repository is in **Phase 3 (first extraction wave)**:
-- canonical schema constants are implemented,
-- baseline validation checks are implemented,
-- basic normalization/dedupe helpers are implemented,
-- provider registry + compatibility env behavior is implemented,
-- minimal cache-backed load API is implemented.
+This repository is in **Phase 5 (wave 2 expansion + contract tightening)**.
+
+Implemented and stable for consumers:
+- canonical bar schema constants and validation entrypoint,
+- CN A-share session anchor helpers and alignment checks,
+- provider registry boundary with compatibility env behavior,
+- storage layout/manifests helpers and dataset inspection APIs,
+- load API boundary (`load_bars`, `load_daily`, `load_30m`, `load_minute_30`).
 
 Still intentionally deferred:
-- concrete BaoStock/Tushare adapter wiring,
-- full ingest pipeline,
-- dataset inspection and rich manifests,
-- advanced calendar and adjustment transforms.
+- concrete BaoStock/Tushare SDK adapters,
+- ingest orchestration pipelines,
+- full transform layer (`resample`, `adjust`) implementation.
 
-## What this repo owns
+## Public package boundaries
 
-- provider adapter contracts and registry
-- canonical OHLCV schema and metadata contracts
-- validation entrypoints for shared bar invariants
-- generic normalization/dedupe helpers
-- storage/access API boundaries
+Prefer importing from these modules:
+- `market_data_core.access`
+- `market_data_core.validation`
+- `market_data_core.calendar`
+- `market_data_core.storage`
+- `market_data_core.providers`
 
-## What is intentionally deferred
+Internal helpers may evolve faster and are not guaranteed as stable imports.
 
-- Backtrader integration
-- strategy/signal/research orchestration
-- full ingest pipelines
-- production-grade persistence orchestration and cataloging
+## Scope guardrails
+
+This package does **not** own:
+- Backtrader integration,
+- strategy/signal/research orchestration,
+- experiment/report workflows.
 
 ## Package layout
 
 See:
 - `docs/architecture.md`
-- `docs/repo_structure.md`
 - `docs/public_api_draft.md`
+- `docs/storage_layout.md`
 
 Code is under `src/market_data_core/` and tests under `tests/`.

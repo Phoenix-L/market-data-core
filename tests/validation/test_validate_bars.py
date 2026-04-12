@@ -40,3 +40,11 @@ def test_validate_bars_turnover_warning_in_permissive_mode() -> None:
     report = validate_bars(df, frequency="1d", strict=False)
     assert report.ok
     assert any("negative_turnover_rate" in warn for warn in report.warnings)
+
+
+def test_validate_bars_flags_session_alignment_for_30m() -> None:
+    df = _valid_frame()
+    df["timestamp"] = pd.to_datetime(["2026-01-02 12:00:00+08:00", "2026-01-03 10:00:00+08:00"])
+    report = validate_bars(df, frequency="30m")
+    assert not report.ok
+    assert any("session_misaligned_timestamps" in err for err in report.errors)

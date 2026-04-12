@@ -1,46 +1,18 @@
-# Public API Draft (Phase 1)
+# Public API Draft (updated through Phase 5)
 
 ## Goals
 - Keep API surface small and stable.
-- Return pandas DataFrames only.
-- Separate ingest/write concerns from read/load concerns.
+- Return pandas DataFrames for bar data APIs.
+- Keep metadata/storage inspection APIs filesystem-agnostic for consumer repos.
 
 Namespace shown as `market_data_core`.
 
 ---
 
-## 1) Ingest APIs
+## 1) Stable load APIs (implemented)
 
 ```python
-from market_data_core.ingest import ingest_bars
-```
-
-```python
-def ingest_bars(
-    symbol: str,
-    start: str,
-    end: str,
-    frequency: str,
-    provider: str | None = None,
-    write_layer: str = "canonical",
-    data_root: str | None = None,
-    validate_strict: bool = True,
-) -> "IngestResult":
-    """Fetch from provider, normalize, validate, and persist."""
-```
-
-`IngestResult` should include:
-- resolved provider
-- row counts fetched/written
-- output dataset path(s)
-- validation summary
-
----
-
-## 2) Load APIs
-
-```python
-from market_data_core.access import load_bars, load_daily, load_30m
+from market_data_core.access import load_bars, load_daily, load_30m, load_minute_30
 ```
 
 ```python
@@ -55,19 +27,17 @@ def load_bars(
     use_cache: bool = True,
     data_root: str | None = None,
 ) -> pd.DataFrame:
-    """Load canonical bars with optional read-time adjustment."""
+    """Load canonical bars with strict validation."""
 ```
 
-Convenience wrappers:
+Compatibility wrappers:
 - `load_daily(...)` → `frequency="1d"`
 - `load_30m(...)` → `frequency="30m"`
-
-Compatibility rule:
-- Maintain close behavior to current `aShare` `load_daily` / `load_minute_30` in Phase 1.
+- `load_minute_30(...)` compatibility alias for `aShare` migration path
 
 ---
 
-## 3) Validation APIs
+## 2) Stable validation APIs (implemented)
 
 ```python
 from market_data_core.validation import validate_bars
@@ -80,10 +50,10 @@ def validate_bars(
     market: str = "cn_equity",
     strict: bool = True,
 ) -> "ValidationReport":
-    """Validate canonical bar contract and calendar alignment."""
+    """Validate schema, invariants, and CN A-share session alignment."""
 ```
 
-`ValidationReport`:
+`ValidationReport` fields:
 - `ok: bool`
 - `errors: list[str]`
 - `warnings: list[str]`
@@ -91,71 +61,50 @@ def validate_bars(
 
 ---
 
-## 4) Transform APIs
+## 3) Stable dataset metadata APIs (implemented)
 
 ```python
-from market_data_core.transform import resample_bars, apply_adjustment
-```
-
-```python
-def resample_bars(
-    df: pd.DataFrame,
-    to_frequency: str,
-    market: str = "cn_equity",
-    session_policy: str = "strict",
-) -> pd.DataFrame:
-    """Session-aware OHLCV resampling."""
-```
-
-```python
-def apply_adjustment(
-    df: pd.DataFrame,
-    mode: str,
-    factors: pd.DataFrame | None = None,
-) -> pd.DataFrame:
-    """Apply raw/qfq/hfq adjustment while preserving contract."""
-```
-
----
-
-## 5) Dataset inspection APIs
-
-```python
-from market_data_core.access import inspect_dataset, list_datasets
+from market_data_core.access import list_datasets, inspect_dataset
 ```
 
 ```python
 def list_datasets(data_root: str | None = None) -> list[str]:
-    """List available dataset ids."""
+    """List dataset ids discovered from storage manifests."""
 ```
 
 ```python
-def inspect_dataset(
-    dataset_id: str,
-    data_root: str | None = None,
-) -> "DatasetProfile":
-    """Return metadata profile (coverage, symbols, schema, freshness)."""
+def inspect_dataset(dataset_id: str, data_root: str | None = None) -> dict[str, object]:
+    """Return latest manifest payload for dataset id."""
 ```
 
-`DatasetProfile` should include:
-- dataset metadata contract fields from `storage_layout.md`
-- sample schema
-- min/max timestamps
-- symbol coverage summary
+---
+
+## 4) Stable calendar/session APIs (implemented)
+
+```python
+from market_data_core.calendar import session_open_anchors, is_session_aligned
+```
+
+```python
+def session_open_anchors(trading_day: date, frequency: str) -> tuple[datetime, ...]:
+    """Return canonical CN A-share open anchors."""
+```
 
 ---
 
-## 6) Deliberate exclusions from public API
+## 5) Deferred APIs
 
-- Backtrader feed conversion.
-- Strategy-oriented feature generation.
-- Experiment orchestration helpers.
-- Research report generation.
+Still draft/deferred:
+- `ingest.ingest_bars`
+- `transform.resample_bars`
+- `transform.apply_adjustment`
+
+These remain out of stable surface until implemented with full contract tests.
 
 ---
 
-## 7) Stability policy
+## 6) Stability policy
 
-- Functions above become Phase 1 "supported" surface.
+- APIs listed above as implemented are Phase 5 stable for consumer repos.
 - New parameters must be additive with safe defaults.
-- Breaking signature changes require a documented migration note.
+- Breaking changes require explicit migration notes and compatibility strategy.

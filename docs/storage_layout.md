@@ -115,3 +115,18 @@ This allows layout evolution without breaking downstream systems.
 - Whether to adopt Delta/Iceberg in later phases.
 - Small-file compaction policy and schedule.
 - Dataset catalog backend (filesystem manifests vs sqlite vs external metastore).
+
+---
+
+## 10) Phase 5 implementation notes
+
+Implemented now in `market-data-core`:
+- storage layout path builders for `raw/canonical/curated`,
+- curated adjustment partition marker (`adj=<mode>`),
+- dataset id helper (`<market>_<freq>_<adjustment>`),
+- JSON sidecar manifest helpers (`build/write/read`),
+- dataset listing and inspection APIs based on manifest discovery.
+
+Current behavior:
+- manifest payload is the contract carrier for dataset metadata at read/inspect boundaries,
+- `inspect_dataset` returns the latest matching manifest by file modification time.

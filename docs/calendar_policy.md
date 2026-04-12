@@ -100,3 +100,18 @@ Policy:
 - Whether to store all timestamps physically in UTC while exposing exchange-local views.
 - Whether to include call auction periods in canonical intraday datasets.
 - How to encode half-day/special session events (rare in CN A-share but should be modelled explicitly if needed).
+
+---
+
+## 10) Phase 5 implementation notes
+
+Implemented now in `market-data-core`:
+- canonical 30m open-anchor set (`09:30, 10:00, 10:30, 11:00, 13:00, 13:30, 14:00, 14:30`),
+- canonical daily open anchor (`09:30`),
+- timezone coercion helper to `Asia/Shanghai`,
+- session alignment checks used by `validate_bars(...)`,
+- best-effort missing 30m anchor diagnostics per day.
+
+Limitations retained intentionally:
+- no exchange-holiday package integration yet,
+- missing-bar checks are warning-oriented diagnostics and do not infer suspension vs holiday.

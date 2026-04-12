@@ -225,3 +225,24 @@ Phase 1 extraction is done when:
 - Direct extraction parity from `aShare` provider modules requires access to final split-ready `tushare_client` abstraction.
 - Exact storage partition implementation in `storage_layout.md` is not yet fully applied (Phase 3 keeps loader/cache-compatible key layout for low-risk migration).
 - Provider parity validation against source outputs still pending once concrete adapters are moved.
+
+---
+
+## 11) Phase 5 progress note (wave 2 + contract tightening)
+
+### Implemented in Phase 5
+- Calendar/session helpers extracted and implemented for CN A-share anchor semantics (`1d`, `30m`) and timezone normalization.
+- Validation now includes calendar session alignment checks and missing-30m-anchor diagnostics.
+- Storage semantics tightened with layer-aware partition builders, dataset id helper, and typed manifest sidecars.
+- Dataset inspection APIs (`list_datasets`, `inspect_dataset`) implemented using manifest discovery.
+- Public API boundaries documented as Phase 5 stable in `docs/public_api_draft.md`.
+
+### Deferred to later phases
+- Concrete provider adapter extraction parity (BaoStock/Tushare implementation details).
+- Ingest orchestration (`ingest_bars`) and transform layer (`resample`, `adjust`) production implementation.
+- Holiday-calendar certainty classification beyond best-effort diagnostics.
+
+### Consumer impact notes
+- No breaking changes to Phase 4 load API signatures (`load_daily`, `load_30m`, `load_minute_30`).
+- Validation is stricter for session misalignment; consumers should ensure intraday timestamps match canonical open anchors.
+- Dataset inspection is now manifest-driven; consumer repos should treat manifest fields as primary metadata contract.
