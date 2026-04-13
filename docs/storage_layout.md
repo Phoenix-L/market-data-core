@@ -1,132 +1,56 @@
 # Storage Layout and Persistence Conventions
 
 ## Purpose
-Define stable dataset layout for shared use across `market-data-core` and consumer repositories.
+Define stable storage semantics used by `market-data-core` in Phase 6, while separating active behavior from future dataset plans.
 
----
+## 1) Two storage-facing modes
 
-## 1) Storage layers
+### Mode A: Cache Mode (**active, implemented**)
 
-Three logical layers:
+Used by `load_bars` today.
 
-1. `raw/`
-   - Provider-native or near-native extracts.
-   - Used for traceability and reprocessing.
-2. `canonical/`
-   - Contract-compliant normalized bars (authoritative serving layer for Phase 1).
-3. `curated/`
-   - Derived datasets (adjusted, repaired, resampled feature-ready bars).
+Path format:
+`<data_root>/<provider>/<symbol>/<frequency>/<start>_<end>.parquet`
 
-Rule: consumers should read from `canonical/` unless they explicitly need curated outputs.
+Characteristics:
+- request-window keyed artifacts,
+- simple read/write helpers,
+- strict validation performed at load boundary.
 
----
+### Mode B: Canonical Dataset Mode (**future, not implemented for load path**)
 
-## 2) Preferred file format
+Planned partition format:
+`canonical/market=<market>/freq=<freq>/symbol=<symbol>/year=<yyyy>/part-*.parquet`
 
-- Primary format: **Parquet**.
-- Compression: `zstd` (preferred) or `snappy` fallback.
-- Engine: `pyarrow`.
+Characteristics:
+- dataset-oriented partitions,
+- manifest-backed metadata,
+- intended for future ingest/canonical-serving flow.
 
-Reason:
-- Columnar efficiency, interoperable across pandas/polars/spark.
-
----
-
-## 3) Shared data root assumptions
+## 2) Shared data root assumptions
 
 Data root is externalized via environment/config:
 - Preferred env: `MARKET_DATA_ROOT`
-- Compatibility aliases (temporary): `ASHARE_CACHE_DIR`
+- Compatibility alias (temporary): `ASHARE_CACHE_DIR`
 
-Default (if unset): repository-local `.data/market_data` for development only.
+Default (if unset): `.data/market_data`
 
-Core package must not hard-code source-repo-relative paths.
+## 3) Manifest and metadata expectations
 
----
+Manifest helpers currently support JSON sidecars carrying fields such as:
+- `dataset_id`, `market`, `frequency`, `adjustment_mode`, `provider`
+- `schema_version`, `timezone`, `timestamp_anchor`
+- `row_count`, `symbol_count`, `min_timestamp`, `max_timestamp`, `created_at_utc`
 
-## 4) Partitioning strategy
+## 4) Access patterns for consumer repos
 
-Canonical baseline partitioning:
+In Phase 6:
+1. Use `market_data_core.access.load_bars` for request-window loads (Cache Mode).
+2. Use `list_datasets` / `inspect_dataset` for manifest-based metadata discovery.
+3. Treat canonical partition loading as future behavior.
 
-`canonical/market=<market>/freq=<freq>/symbol=<symbol>/year=<yyyy>/part-*.parquet`
+## 5) Deferred/open decisions
 
-Example:
-`canonical/market=cn_equity/freq=30m/symbol=000001.SZ/year=2026/part-000.parquet`
-
-Rationale:
-- Symbol-first locality for research loaders.
-- Year partition to bound file sizes and append windows.
-
-Daily datasets may also support coarser files per symbol-year.
-
----
-
-## 5) Naming conventions
-
-- Market ids: `cn_equity`.
-- Frequency ids: `1d`, `30m`.
-- Adjustment tag in curated datasets: `adj=<raw|qfq|hfq>`.
-- Provider provenance field kept in metadata (`provider`, `provider_mix`).
-
----
-
-## 6) Manifest and metadata expectations
-
-Each dataset slice should expose machine-readable metadata (manifest file or metadata table), including:
-- `dataset_id`
-- `market`
-- `frequency`
-- `adjustment_mode`
-- `schema_version`
-- `timezone`
-- `timestamp_anchor`
-- `min_timestamp`
-- `max_timestamp`
-- `symbol_count`
-- `row_count`
-- `created_at_utc`
-- `producer_version`
-
-At minimum in Phase 1: per-write JSON sidecar manifest is acceptable.
-
----
-
-## 7) Access patterns for consumer repos
-
-Consumer repos should:
-1. Depend on `market-data-core` access/load APIs rather than reading storage paths directly.
-2. Pass `data_root` override only when non-default roots are required.
-3. Treat layout as semi-internal; only documented dataset ids and APIs are contract-stable.
-
-This allows layout evolution without breaking downstream systems.
-
----
-
-## 8) Write semantics
-
-- Writes are append-safe by partition.
-- Rewrites should be explicit (`replace_partition=True`) and logged in manifests.
-- Validation is mandatory before canonical writes.
-
----
-
-## 9) Deferred/open decisions
-
-- Whether to adopt Delta/Iceberg in later phases.
-- Small-file compaction policy and schedule.
-- Dataset catalog backend (filesystem manifests vs sqlite vs external metastore).
-
----
-
-## 10) Phase 5 implementation notes
-
-Implemented now in `market-data-core`:
-- storage layout path builders for `raw/canonical/curated`,
-- curated adjustment partition marker (`adj=<mode>`),
-- dataset id helper (`<market>_<freq>_<adjustment>`),
-- JSON sidecar manifest helpers (`build/write/read`),
-- dataset listing and inspection APIs based on manifest discovery.
-
-Current behavior:
-- manifest payload is the contract carrier for dataset metadata at read/inspect boundaries,
-- `inspect_dataset` returns the latest matching manifest by file modification time.
+- canonical partition read path in access layer,
+- ingest materialization policy,
+- potential catalog backend expansion.

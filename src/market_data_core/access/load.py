@@ -1,4 +1,10 @@
-"""Load APIs aligned to docs/public_api_draft.md."""
+"""Stable load APIs (Phase 6) built on Cache Mode storage.
+
+Important contract note:
+- ``load_bars`` currently operates in **Cache Mode** only
+  (`provider/symbol/frequency/start_end.parquet`).
+- Canonical dataset partition loading is a future phase concern.
+"""
 
 from __future__ import annotations
 
@@ -24,6 +30,11 @@ def load_bars(
     use_cache: bool = True,
     data_root: str | None = None,
 ) -> "pd.DataFrame":
+    """Load canonical bars for one symbol via provider + Cache Mode storage.
+
+    Parameters ``adjustment`` and ``source_preference`` are retained for
+    compatibility but are not active in Phase 6 behavior.
+    """
     del adjustment, source_preference
     resolved_provider = get_provider(provider)
     provider_name = resolved_provider.name.lower()
@@ -47,12 +58,15 @@ def load_bars(
 
 
 def load_daily(*_: object, **kwargs: object) -> "pd.DataFrame":
+    """Compatibility wrapper for ``load_bars(..., frequency='1d')``."""
     return load_bars(*_, frequency="1d", **kwargs)
 
 
 def load_30m(*_: object, **kwargs: object) -> "pd.DataFrame":
+    """Compatibility wrapper for ``load_bars(..., frequency='30m')``."""
     return load_bars(*_, frequency="30m", **kwargs)
 
 
 def load_minute_30(*_: object, **kwargs: object) -> "pd.DataFrame":
+    """Legacy compatibility alias retained for migration from aShare."""
     return load_30m(*_, **kwargs)
