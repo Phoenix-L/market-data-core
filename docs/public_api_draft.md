@@ -1,13 +1,20 @@
-# Public API Draft (updated through Phase 5)
+# Public API Contract (Phase 6)
 
-## Goals
-- Keep API surface small and stable.
-- Return pandas DataFrames for bar data APIs.
-- Keep metadata/storage inspection APIs filesystem-agnostic for consumer repos.
+## Status
 
-Namespace shown as `market_data_core`.
+This document now represents the Phase 6 **contract-locked** public API.
 
----
+Implemented and stable:
+- `market_data_core.access`
+- `market_data_core.validation`
+- `market_data_core.calendar`
+- `market_data_core.storage`
+- `market_data_core.providers` (registry boundary only)
+
+Deferred (not stable):
+- `market_data_core.ingest`
+- `market_data_core.transform`
+- concrete SDK adapters under provider subpackages
 
 ## 1) Stable load APIs (implemented)
 
@@ -27,15 +34,13 @@ def load_bars(
     use_cache: bool = True,
     data_root: str | None = None,
 ) -> pd.DataFrame:
-    """Load canonical bars with strict validation."""
+    """Load canonical bars with strict validation via Cache Mode pathing."""
 ```
 
 Compatibility wrappers:
 - `load_daily(...)` → `frequency="1d"`
 - `load_30m(...)` → `frequency="30m"`
 - `load_minute_30(...)` compatibility alias for `aShare` migration path
-
----
 
 ## 2) Stable validation APIs (implemented)
 
@@ -59,8 +64,6 @@ def validate_bars(
 - `warnings: list[str]`
 - `stats: dict[str, int | float]`
 
----
-
 ## 3) Stable dataset metadata APIs (implemented)
 
 ```python
@@ -77,34 +80,24 @@ def inspect_dataset(dataset_id: str, data_root: str | None = None) -> dict[str, 
     """Return latest manifest payload for dataset id."""
 ```
 
----
-
 ## 4) Stable calendar/session APIs (implemented)
 
 ```python
 from market_data_core.calendar import session_open_anchors, is_session_aligned
 ```
 
-```python
-def session_open_anchors(trading_day: date, frequency: str) -> tuple[datetime, ...]:
-    """Return canonical CN A-share open anchors."""
-```
+## 5) Storage mode contract
 
----
-
-## 5) Deferred APIs
-
-Still draft/deferred:
-- `ingest.ingest_bars`
-- `transform.resample_bars`
-- `transform.apply_adjustment`
-
-These remain out of stable surface until implemented with full contract tests.
-
----
+Two explicitly documented modes:
+1. **Cache Mode (active in Phase 6)**
+   - used by `load_bars`
+   - `<data_root>/<provider>/<symbol>/<frequency>/<start>_<end>.parquet`
+2. **Canonical Dataset Mode (future phase)**
+   - partition + manifest model
+   - not used by `load_bars` yet
 
 ## 6) Stability policy
 
-- APIs listed above as implemented are Phase 5 stable for consumer repos.
+- APIs listed above are Phase 6 stable for consumer repos.
 - New parameters must be additive with safe defaults.
-- Breaking changes require explicit migration notes and compatibility strategy.
+- Breaking changes require migration notes and compatibility strategy.
