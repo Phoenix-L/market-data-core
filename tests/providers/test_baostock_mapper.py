@@ -2,6 +2,7 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
+from market_data_core.calendar import is_session_aligned
 from market_data_core.core.exceptions import ProviderError
 from market_data_core.providers.baostock.mapper import map_to_canonical
 
@@ -30,7 +31,7 @@ def test_map_daily_payload_to_canonical() -> None:
 def test_map_minute30_payload_to_canonical() -> None:
     payload = pd.DataFrame(
         {
-            "time": ["2026010210000000", "2026010209300000"],
+            "time": ["2026010210300000", "2026010210000000"],
             "open": [10.1, 10.0],
             "high": [10.3, 10.2],
             "low": [10.0, 9.9],
@@ -43,6 +44,8 @@ def test_map_minute30_payload_to_canonical() -> None:
 
     assert out["timestamp"].is_monotonic_increasing
     assert str(out["timestamp"].dt.tz) == "Asia/Shanghai"
+    assert out["timestamp"].dt.strftime("%H:%M:%S").tolist() == ["09:30:00", "10:00:00"]
+    assert out["timestamp"].map(lambda x: is_session_aligned(x.to_pydatetime(), "30m")).all()
     assert out["turnover_rate"].isna().all()
 
 

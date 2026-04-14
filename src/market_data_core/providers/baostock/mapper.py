@@ -43,7 +43,8 @@ def _parse_timestamp(df: "pd.DataFrame", frequency: str) -> "pd.Series":
 
     if frequency == "30m":
         if "time" in df.columns:
-            series = _parse_minute30_series(df["time"])
+            # BaoStock minute bars are end-anchored; canonical contract is open-anchored.
+            series = _parse_minute30_series(df["time"]) - pd.Timedelta(minutes=30)
         elif "date" in df.columns:
             series = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="raise")
         else:

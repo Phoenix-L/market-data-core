@@ -51,8 +51,8 @@ class _FakeBaoStockClient:
         return _FakeQueryResult(
             fields.split(","),
             [
-                ["2026-01-02", "2026010210000000", "10.1", "10.3", "10.0", "10.2", "1200"],
-                ["2026-01-02", "2026010209300000", "10.0", "10.2", "9.9", "10.1", "1000"],
+                ["2026-01-02", "2026010210300000", "10.1", "10.3", "10.0", "10.2", "1200"],
+                ["2026-01-02", "2026010210000000", "10.0", "10.2", "9.9", "10.1", "1000"],
             ],
         )
 
@@ -147,6 +147,7 @@ def test_load_bars_baostock_minute30_passes_validation(tmp_path) -> None:
 
     assert len(df) == 2
     assert df["timestamp"].is_monotonic_increasing
+    assert df["timestamp"].dt.strftime("%H:%M:%S").tolist() == ["09:30:00", "10:00:00"]
 
 
 def test_baostock_provider_query_error_raises_provider_error() -> None:
