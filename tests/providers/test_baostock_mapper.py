@@ -2,6 +2,7 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
+from market_data_core.calendar import is_session_aligned
 from market_data_core.core.exceptions import ProviderError
 from market_data_core.providers.baostock.mapper import map_to_canonical
 
@@ -30,7 +31,7 @@ def test_map_daily_payload_to_canonical() -> None:
 def test_map_minute30_payload_to_canonical() -> None:
     payload = pd.DataFrame(
         {
-            "time": ["2026-01-02 10:00:00", "2026-01-02 09:30:00"],
+            "time": ["2026010210300000", "2026010210000000"],
             "open": [10.1, 10.0],
             "high": [10.3, 10.2],
             "low": [10.0, 9.9],
@@ -43,7 +44,25 @@ def test_map_minute30_payload_to_canonical() -> None:
 
     assert out["timestamp"].is_monotonic_increasing
     assert str(out["timestamp"].dt.tz) == "Asia/Shanghai"
+    assert out["timestamp"].dt.strftime("%H:%M:%S").tolist() == ["09:30:00", "10:00:00"]
+    assert out["timestamp"].map(lambda x: is_session_aligned(x.to_pydatetime(), "30m")).all()
     assert out["turnover_rate"].isna().all()
+
+
+def test_map_minute30_payload_invalid_compact_time_raises_provider_error() -> None:
+    payload = pd.DataFrame(
+        {
+            "time": ["202601020930000"],
+            "open": [10.0],
+            "high": [10.2],
+            "low": [9.8],
+            "close": [10.1],
+            "volume": [1000],
+        }
+    )
+
+    with pytest.raises(ProviderError, match="invalid format"):
+        map_to_canonical(payload, symbol="000001.SZ", frequency="30m")
 
 
 def test_map_payload_missing_columns_raises_provider_error() -> None:
