@@ -73,12 +73,11 @@ def fetch_daily_payload(symbol: str, start_date: str, end_date: str, client_fact
                 frequency="d",
                 adjustflag="3",
             )
+            return _query_to_frame(result)
     except ProviderError:
         raise
     except Exception as exc:
         raise ProviderError(f"BaoStock daily fetch failed for {symbol}: {exc}") from exc
-
-    return _query_to_frame(result)
 
 
 def fetch_minute30_payload(symbol: str, start_date: str, end_date: str, client_factory: Any = get_client) -> "pd.DataFrame":
@@ -94,9 +93,8 @@ def fetch_minute30_payload(symbol: str, start_date: str, end_date: str, client_f
                 frequency="30",
                 adjustflag="3",
             )
+            return _query_to_frame(result)
     except ProviderError:
         raise
     except Exception as exc:
         raise ProviderError(f"BaoStock 30m fetch failed for {symbol}: {exc}") from exc
-
-    return _query_to_frame(result)
