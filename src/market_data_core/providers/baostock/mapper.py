@@ -12,6 +12,23 @@ if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
 
 
+def _parse_minute30_series(series: "pd.Series") -> "pd.Series":
+    import pandas as pd
+
+    text = series.astype(str).str.strip()
+    compact_mask = text.str.fullmatch(r"\d{16,17}")
+    iso_mask = text.str.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
+
+    if compact_mask.all():
+        return pd.to_datetime(text, format="%Y%m%d%H%M%S%f", errors="raise")
+    if iso_mask.all():
+        return pd.to_datetime(text, format="%Y-%m-%d %H:%M:%S", errors="raise")
+
+    raise ProviderError(
+        "BaoStock 30m time column has invalid format; expected 'YYYYMMDDHHMMSSff[...f]' or 'YYYY-MM-DD HH:MM:SS'"
+    )
+
+
 def _parse_timestamp(df: "pd.DataFrame", frequency: str) -> "pd.Series":
     import pandas as pd
 
@@ -26,9 +43,9 @@ def _parse_timestamp(df: "pd.DataFrame", frequency: str) -> "pd.Series":
 
     if frequency == "30m":
         if "time" in df.columns:
-            series = pd.to_datetime(df["time"], errors="raise")
+            series = _parse_minute30_series(df["time"])
         elif "date" in df.columns:
-            series = pd.to_datetime(df["date"], errors="raise")
+            series = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="raise")
         else:
             raise ProviderError("BaoStock 30m payload missing both 'time' and 'date' columns")
 
