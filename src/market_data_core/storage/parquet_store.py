@@ -1,7 +1,8 @@
 """Parquet-backed storage helpers for the active Cache Mode.
 
 Active mode (Phase 6):
-- cache path layout: ``<data_root>/<provider>/<symbol>/<frequency>/<start>_<end>.parquet``
+- cache path layout:
+  ``<data_root>/<cache_contract_version>/<provider>/<symbol>/<frequency>/<start>_<end>.parquet``
 
 Future mode (Phase 7+):
 - canonical dataset partition + manifest model for direct loading.
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from market_data_core.core.exceptions import NotReadyError
+from market_data_core.storage.constants import CACHE_CONTRACT_VERSION
 
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
@@ -37,7 +39,7 @@ def resolve_data_root(data_root: str | None = None) -> Path:
 
 def cache_file_path(provider: str, symbol: str, frequency: str, start: str, end: str, data_root: str | None = None) -> Path:
     """Return Cache Mode parquet path for one provider/symbol/range slice."""
-    return resolve_data_root(data_root) / provider / symbol / frequency / f"{start}_{end}.parquet"
+    return resolve_data_root(data_root) / CACHE_CONTRACT_VERSION / provider / symbol / frequency / f"{start}_{end}.parquet"
 
 
 def cache_exists(provider: str, symbol: str, frequency: str, start: str, end: str, data_root: str | None = None) -> bool:
