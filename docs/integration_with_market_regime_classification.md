@@ -11,6 +11,12 @@ This note describes the recommended integration pattern for downstream regime wo
 
 It should not depend on internal modules under `market_data_core.*` outside the stable public list.
 
+## Timestamp boundary
+
+`market-data-core` owns provider timestamp normalization. Canonical intraday bars use bar-open timestamps. For CN A-share 30m data, the expected anchors are `09:30`, `10:00`, `10:30`, `11:00`, `13:00`, `13:30`, `14:00`, and `14:30`.
+
+BaoStock 30m raw times are close/end-anchored; the BaoStock mapper normalizes them to open anchors before data reaches consumers. `market-regime-classification` should accept upstream canonical bars as-is and should not apply BaoStock-specific timestamp shifts.
+
 ## Typical startup sequence
 
 1. Register a provider implementation using `register_provider(...)`.

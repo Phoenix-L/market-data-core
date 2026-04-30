@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from market_data_core.clean.dedupe import duplicate_key_count
 from market_data_core.clean.quality_flags import DUPLICATE_PRIMARY_KEY, MISSING_REQUIRED_COLUMNS, NON_MONOTONIC_TIMESTAMP
+from market_data_core.schema.bars import BAR_PRIMARY_KEY
 from market_data_core.schema.bars import REQUIRED_BAR_COLUMNS
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -18,6 +19,8 @@ def check_required_columns(df: "pd.DataFrame") -> list[str]:
 
 
 def check_duplicate_keys(df: "pd.DataFrame") -> list[str]:
+    if not set(BAR_PRIMARY_KEY).issubset(df.columns):
+        return []
     dupes = duplicate_key_count(df)
     return [] if dupes == 0 else [f"{DUPLICATE_PRIMARY_KEY}: {dupes}"]
 

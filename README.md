@@ -4,7 +4,7 @@
 
 ## Current phase
 
-This repository is in **Phase 6 (contract hardening + consumer readiness)**.
+This repository is in **Phase 6 (contract hardening + consumer readiness)**, with Phase 6.6 cache contract versioning for timestamp-semantics safety.
 
 ### Implemented (Phase 6 stable)
 - canonical bar schema constants and validation entrypoint,
@@ -43,11 +43,19 @@ Everything else should be treated as **internal, experimental, or deferred** unl
 
 1. **Cache Mode (active, implemented)**
    - Used by `load_bars`.
-   - Path format: `<data_root>/<provider>/<symbol>/<frequency>/<start>_<end>.parquet`.
+   - Versioned cache contract: `v2`.
+   - Path format: `<data_root>/v2/<provider>/<symbol>/<frequency>/<start>_<end>.parquet`.
+   - The version is part of the semantic cache contract. Older unversioned cache files are intentionally not read by the current loader.
 
 2. **Canonical Dataset Mode (future, not implemented for load path)**
    - Uses partition + manifest conventions (`canonical/market=.../freq=.../symbol=.../year=...`).
    - Planned for a future phase (Phase 7+).
+
+## Timestamp convention
+
+Canonical intraday `timestamp` values are bar-open anchors in exchange-local time. For CN A-share 30m bars, valid anchors are `09:30`, `10:00`, `10:30`, `11:00`, `13:00`, `13:30`, `14:00`, and `14:30`.
+
+Provider-specific timestamp conventions are normalized inside `market-data-core`. For example, BaoStock 30m raw timestamps are close/end-anchored and are shifted to canonical open anchors by the BaoStock mapper. Downstream repos should not apply provider-specific timestamp fixes.
 
 ## Scope guardrails
 

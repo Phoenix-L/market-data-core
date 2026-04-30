@@ -10,12 +10,18 @@ Define stable storage semantics used by `market-data-core` in Phase 6, while sep
 Used by `load_bars` today.
 
 Path format:
-`<data_root>/<provider>/<symbol>/<frequency>/<start>_<end>.parquet`
+`<data_root>/<cache_contract_version>/<provider>/<symbol>/<frequency>/<start>_<end>.parquet`
+
+Current cache contract version:
+`v2`
 
 Characteristics:
 - request-window keyed artifacts,
+- versioned by semantic cache contract,
 - simple read/write helpers,
 - strict validation performed at load boundary.
+
+The cache contract version is intentionally part of the active path. This prevents silent reuse of stale files created under an older timestamp convention, such as unversioned BaoStock 30m files with close/end-anchored timestamps.
 
 ### Mode B: Canonical Dataset Mode (**future, not implemented for load path**)
 
@@ -34,6 +40,9 @@ Data root is externalized via environment/config:
 - Compatibility alias (temporary): `ASHARE_CACHE_DIR`
 
 Default (if unset): `.data/market_data`
+
+With the active contract version, the default cache path is:
+`.data/market_data/v2/<provider>/<symbol>/<frequency>/<start>_<end>.parquet`
 
 ## 3) Manifest and metadata expectations
 
